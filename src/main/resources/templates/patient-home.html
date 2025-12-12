@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="tr" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <title>Hasta Paneli</title>
@@ -7,8 +7,54 @@
 <body>
 <h1>Hasta Paneli</h1>
 
-<p>Burada hastanın randevuları, fatura listesi vs. gösterilecek.</p>
+<h2>Randevularım</h2>
 
+<div th:if="${appointments == null or #lists.isEmpty(appointments)}">
+    <p>Henüz randevu yok.</p>
+</div>
+
+<table th:if="${appointments != null and !#lists.isEmpty(appointments)}" border="1" cellpadding="6">
+    <thead>
+    <tr>
+        <th>Tarih/Saat</th>
+        <th>Doktor</th>
+        <th>Durum</th>
+        <th>İşlem</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    <tr th:each="a : ${appointments}">
+        <td th:text="${a.appointmentDatetime != null ? #temporals.format(a.appointmentDatetime, 'dd.MM.yyyy HH:mm') : '-'}"></td>
+
+        <td th:text="${a.dentist != null ? (a.dentist.firstName + ' ' + a.dentist.lastName) : '-'}"></td>
+
+        <td th:text="${a.status != null ? a.status : '-'}"></td>
+
+        <td>
+            <form th:if="${a.status != null
+                          and a.status.name() == 'SCHEDULED'
+                          and a.appointmentDatetime != null
+                          and a.appointmentDatetime.isAfter(T(java.time.LocalDateTime).now())
+                          and a.appointmentDatetime.isBefore(T(java.time.LocalDateTime).now().plusHours(24))}"
+                  th:action="@{'/patient/appointments/' + ${a.id} + '/confirm-attendance'}"
+                  method="post" style="display:inline;">
+                <button type="submit">Katılacağım</button>
+            </form>
+
+            <span th:if="${!(a.status != null
+                          and a.status.name() == 'SCHEDULED'
+                          and a.appointmentDatetime != null
+                          and a.appointmentDatetime.isAfter(T(java.time.LocalDateTime).now())
+                          and a.appointmentDatetime.isBefore(T(java.time.LocalDateTime).now().plusHours(24)))}">
+                -
+            </span>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<p><a th:href="@{/patient/appointments/new}">Yeni randevu oluştur</a></p>
 <p><a th:href="@{/logout}">Çıkış yap</a></p>
 </body>
 </html>

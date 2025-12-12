@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="tr" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <title>Doktor Paneli</title>
@@ -7,7 +7,49 @@
 <body>
 <h1>Doktor Paneli</h1>
 
-<p>Burada doktorun randevu listesi vs. gösterilecek.</p>
+<h2>Randevu Listem</h2>
+
+<div th:if="${#lists.isEmpty(appointments)}">
+    <p>Henüz randevu yok.</p>
+</div>
+
+<table th:if="${!#lists.isEmpty(appointments)}" border="1" cellpadding="10">
+    <thead>
+    <tr>
+        <th>Tarih/Saat</th>
+        <th>Hasta</th>
+        <th>Durum</th>
+        <th>İşlem</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="a : ${appointments}">
+        <td th:text="${#temporals.format(a.appointmentDatetime, 'dd.MM.yyyy HH:mm')}"></td>
+        <td th:text="${a.patient.firstName + ' ' + a.patient.lastName}"></td>
+        <td th:text="${a.status}"></td>
+        <td>
+            <form th:if="${a.status.name() == 'SCHEDULED'}"
+                  th:action="@{'/dentist/appointments/' + ${a.id} + '/confirm'}"
+                  method="post" style="display:inline;">
+                <button type="submit">Onayla</button>
+            </form>
+
+            <form th:if="${a.status.name() != 'CANCELLED'}"
+                  th:action="@{'/dentist/appointments/' + ${a.id} + '/cancel'}"
+                  method="post" style="display:inline;">
+                <button type="submit">İptal Et</button>
+            </form>
+
+            <form th:if="${a.status.name() != 'COMPLETED' and a.status.name() != 'CANCELLED' and a.status.name() != 'EXPIRED'}"
+                  th:action="@{'/dentist/appointments/' + ${a.id} + '/complete'}"
+                  method="post" style="display:inline;">
+                <button type="submit">Tamamlandı</button>
+            </form>
+
+        </td>
+    </tr>
+    </tbody>
+</table>
 
 <p><a th:href="@{/logout}">Çıkış yap</a></p>
 </body>

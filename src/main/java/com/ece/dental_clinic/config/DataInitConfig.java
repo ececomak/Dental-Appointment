@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDateTime;
+
 @Configuration
 public class DataInitConfig {
 
@@ -15,19 +17,30 @@ public class DataInitConfig {
     public CommandLineRunner initData(UserAccountRepository userAccountRepository,
                                       PasswordEncoder passwordEncoder) {
         return args -> {
-            long count = userAccountRepository.count();
-            System.out.println(">> User count: " + count);
 
-            if (count == 0) {
-                UserAccount user = new UserAccount();
-                user.setEmail("test@clinic.com");
-                user.setPasswordHash(passwordEncoder.encode("123456"));
-                user.setRole(UserRole.PATIENT);
-                user.setActive(true);
-
-                userAccountRepository.save(user);
-                System.out.println(">> Test user inserted");
+            String patientEmail = "test@clinic.com";
+            if (userAccountRepository.findByEmail(patientEmail).isEmpty()) {
+                UserAccount patient = new UserAccount();
+                patient.setEmail(patientEmail);
+                patient.setPasswordHash(passwordEncoder.encode("123456"));
+                patient.setRole(UserRole.PATIENT);
+                patient.setActive(true);
+                patient.setCreatedAt(LocalDateTime.now());
+                userAccountRepository.save(patient);
             }
+
+            String dentistEmail = "dentist@clinic.com";
+            if (userAccountRepository.findByEmail(dentistEmail).isEmpty()) {
+                UserAccount dentist = new UserAccount();
+                dentist.setEmail(dentistEmail);
+                dentist.setPasswordHash(passwordEncoder.encode("123456"));
+                dentist.setRole(UserRole.DENTIST);
+                dentist.setActive(true);
+                dentist.setCreatedAt(LocalDateTime.now());
+                userAccountRepository.save(dentist);
+            }
+
+            System.out.println(">> User count: " + userAccountRepository.count());
         };
     }
 }
