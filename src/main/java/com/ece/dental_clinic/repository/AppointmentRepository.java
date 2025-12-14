@@ -27,4 +27,17 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     int expirePastAppointments(LocalDateTime now,
                                AppointmentStatus expired,
                                List<AppointmentStatus> finalStatuses);
+
+    boolean existsByDentist_IdAndAppointmentDatetimeAndStatusNotIn(
+            Long dentistId,
+            LocalDateTime appointmentDatetime,
+            List<AppointmentStatus> statuses
+    );
+
+    List<Appointment> findByDentist_IdAndAppointmentDatetimeBetweenAndStatusNotInOrderByAppointmentDatetimeAsc(
+            Long dentistId,
+            LocalDateTime start,
+            LocalDateTime end,
+            List<AppointmentStatus> statuses
+    );
 }

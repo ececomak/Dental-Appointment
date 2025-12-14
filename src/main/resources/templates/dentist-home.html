@@ -18,15 +18,20 @@
     <tr>
         <th>Tarih/Saat</th>
         <th>Hasta</th>
+        <th>Yapılacak İşlem</th>
         <th>Durum</th>
-        <th>İşlem</th>
+        <th>İşlemler</th>
     </tr>
     </thead>
     <tbody>
     <tr th:each="a : ${appointments}">
         <td th:text="${#temporals.format(a.appointmentDatetime, 'dd.MM.yyyy HH:mm')}"></td>
         <td th:text="${a.patient.firstName + ' ' + a.patient.lastName}"></td>
+
+        <td th:text="${treatmentByAppointmentId != null and a.id != null and treatmentByAppointmentId.containsKey(a.id) ? treatmentByAppointmentId.get(a.id) : '-'}"></td>
+
         <td th:text="${a.status}"></td>
+
         <td>
             <form th:if="${a.status.name() == 'SCHEDULED'}"
                   th:action="@{'/dentist/appointments/' + ${a.id} + '/confirm'}"

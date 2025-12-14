@@ -1,20 +1,17 @@
 package com.ece.dental_clinic.controller;
 
-import com.ece.dental_clinic.entity.Appointment;
-import com.ece.dental_clinic.entity.Dentist;
-import com.ece.dental_clinic.entity.Patient;
+import com.ece.dental_clinic.entity.*;
 import com.ece.dental_clinic.enums.AppointmentStatus;
-import com.ece.dental_clinic.repository.AppointmentRepository;
-import com.ece.dental_clinic.repository.DentistRepository;
-import com.ece.dental_clinic.repository.PatientRepository;
+import com.ece.dental_clinic.repository.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Controller
 public class PatientController {
@@ -22,19 +19,33 @@ public class PatientController {
     private final AppointmentRepository appointmentRepository;
     private final PatientRepository patientRepository;
     private final DentistRepository dentistRepository;
+    private final TreatmentRepository treatmentRepository;
+    private final AppointmentTreatmentRepository appointmentTreatmentRepository;
+    private final InvoiceRepository invoiceRepository;
+
+    private static final int DEFAULT_SLOT_MINUTES = 30;
+    private static final LocalTime WORK_START = LocalTime.of(9, 0);
+    private static final LocalTime WORK_END = LocalTime.of(17, 0);
 
     public PatientController(
             AppointmentRepository appointmentRepository,
             PatientRepository patientRepository,
-            DentistRepository dentistRepository
+            DentistRepository dentistRepository,
+            TreatmentRepository treatmentRepository,
+            AppointmentTreatmentRepository appointmentTreatmentRepository,
+            InvoiceRepository invoiceRepository
     ) {
         this.appointmentRepository = appointmentRepository;
         this.patientRepository = patientRepository;
         this.dentistRepository = dentistRepository;
+        this.treatmentRepository = treatmentRepository;
+        this.appointmentTreatmentRepository = appointmentTreatmentRepository;
+        this.invoiceRepository = invoiceRepository;
     }
 
     @GetMapping("/patient/home")
     public String patientHome(Authentication authentication, Model model) {
+
         appointmentRepository.expirePastAppointments(
                 LocalDateTime.now(),
                 AppointmentStatus.EXPIRED,
@@ -42,15 +53,112 @@ public class PatientController {
         );
 
         String email = authentication.getName();
-        model.addAttribute("appointments",
-                appointmentRepository.findByPatient_UserAccount_EmailOrderByAppointmentDatetimeDesc(email)
-        );
+
+        List<Appointment> appointments =
+                appointmentRepository.findByPatient_UserAccount_EmailOrderByAppointmentDatetimeDesc(email);
+
+        model.addAttribute("appointments", appointments);
+
+        Map<Long, String> treatmentByAppointmentId = new HashMap<>();
+        Map<Long, Invoice> invoiceByAppointmentId = new HashMap<>();
+
+        List<Long> appointmentIds = appointments.stream()
+                .map(Appointment::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        if (!appointmentIds.isEmpty()) {
+            List<AppointmentTreatment> ats = appointmentTreatmentRepository.findByAppointment_IdIn(appointmentIds);
+
+            Map<Long, List<AppointmentTreatment>> grouped = ats.stream()
+                    .filter(at -> at.getAppointment() != null && at.getAppointment().getId() != null)
+                    .collect(Collectors.groupingBy(at -> at.getAppointment().getId()));
+
+            for (Map.Entry<Long, List<AppointmentTreatment>> e : grouped.entrySet()) {
+                String names = e.getValue().stream()
+                        .map(at -> at.getTreatment() != null ? at.getTreatment().getName() : null)
+                        .filter(Objects::nonNull)
+                        .distinct()
+                        .collect(Collectors.joining(", "));
+                treatmentByAppointmentId.put(e.getKey(), names);
+            }
+
+            for (Long appointmentId : appointmentIds) {
+                invoiceRepository.findByAppointment_Id(appointmentId)
+                        .ifPresent(inv -> invoiceByAppointmentId.put(appointmentId, inv));
+            }
+        }
+
+        model.addAttribute("treatmentByAppointmentId", treatmentByAppointmentId);
+        model.addAttribute("invoiceByAppointmentId", invoiceByAppointmentId);
+
         return "patient-home";
     }
 
     @GetMapping("/patient/appointments/new")
-    public String newAppointmentForm(Model model) {
+    public String newAppointmentForm(
+            @RequestParam(value = "dentistId", required = false) Long dentistId,
+            @RequestParam(value = "treatmentId", required = false) Long treatmentId,
+            @RequestParam(value = "date", required = false) String dateStr,
+            Model model
+    ) {
         model.addAttribute("dentists", dentistRepository.findAll());
+        model.addAttribute("treatments", treatmentRepository.findByActiveTrueOrderByNameAsc());
+
+        model.addAttribute("selectedDentistId", dentistId);
+        model.addAttribute("selectedTreatmentId", treatmentId);
+        model.addAttribute("selectedDate", dateStr);
+
+        Integer slotMinutes = null;
+
+        if (treatmentId != null) {
+            Treatment selected = treatmentRepository.findById(treatmentId)
+                    .orElseThrow(() -> new RuntimeException("İşlem bulunamadı: " + treatmentId));
+
+            if (selected.getDefaultDurationMinutes() != null && selected.getDefaultDurationMinutes() > 0) {
+                slotMinutes = selected.getDefaultDurationMinutes();
+            }
+        }
+
+        if (slotMinutes == null) slotMinutes = DEFAULT_SLOT_MINUTES;
+        model.addAttribute("slotMinutes", slotMinutes);
+
+        if (dentistId != null && treatmentId != null && dateStr != null && !dateStr.isBlank()) {
+            LocalDate date = LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
+
+            LocalTime lastStart = WORK_END.minusMinutes(slotMinutes);
+
+            LocalDateTime dayStart = date.atTime(WORK_START);
+            LocalDateTime dayEnd = date.atTime(WORK_END);
+
+            List<Appointment> busy = appointmentRepository
+                    .findByDentist_IdAndAppointmentDatetimeBetweenAndStatusNotInOrderByAppointmentDatetimeAsc(
+                            dentistId,
+                            dayStart,
+                            dayEnd,
+                            List.of(AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED, AppointmentStatus.EXPIRED)
+                    );
+
+            Set<LocalDateTime> busyTimes = busy.stream()
+                    .map(Appointment::getAppointmentDatetime)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+
+            List<LocalDateTime> slots = new ArrayList<>();
+            LocalDateTime t = dayStart;
+            while (!t.toLocalTime().isAfter(lastStart)) {
+                slots.add(t);
+                t = t.plusMinutes(slotMinutes);
+            }
+
+            LocalDateTime now = LocalDateTime.now();
+            slots = slots.stream().filter(s -> !s.isBefore(now)).collect(Collectors.toList());
+
+            slots = slots.stream().filter(s -> !busyTimes.contains(s)).collect(Collectors.toList());
+
+            model.addAttribute("slots", slots);
+        }
+
         return "patient-appointment-new";
     }
 
@@ -58,6 +166,7 @@ public class PatientController {
     public String createAppointment(
             Authentication authentication,
             @RequestParam("dentistId") Long dentistId,
+            @RequestParam("treatmentId") Long treatmentId,
             @RequestParam("appointmentDatetime") String appointmentDatetime
     ) {
         String email = authentication.getName();
@@ -72,7 +181,39 @@ public class PatientController {
             throw new RuntimeException("Seçilen doktorun clinic bilgisi yok. dentist_id=" + dentistId);
         }
 
+        Treatment treatment = treatmentRepository.findById(treatmentId)
+                .orElseThrow(() -> new RuntimeException("İşlem bulunamadı: " + treatmentId));
+
         LocalDateTime dt = LocalDateTime.parse(appointmentDatetime, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+        if (dt.isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Geçmiş bir tarih/saat için randevu alınamaz.");
+        }
+
+        int slotMinutes = (treatment.getDefaultDurationMinutes() != null && treatment.getDefaultDurationMinutes() > 0)
+                ? treatment.getDefaultDurationMinutes()
+                : DEFAULT_SLOT_MINUTES;
+
+        LocalTime time = dt.toLocalTime();
+        LocalTime lastStart = WORK_END.minusMinutes(slotMinutes);
+
+        if (time.isBefore(WORK_START) || time.isAfter(lastStart)) {
+            throw new RuntimeException("Randevu saatleri sadece 09:00 - " + lastStart + " arası seçilebilir.");
+        }
+
+        if (time.getMinute() % slotMinutes != 0) {
+            throw new RuntimeException("Randevu saati " + slotMinutes + " dakikalık aralıklara uygun olmalı.");
+        }
+
+        boolean occupied = appointmentRepository.existsByDentist_IdAndAppointmentDatetimeAndStatusNotIn(
+                dentistId,
+                dt,
+                List.of(AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED, AppointmentStatus.EXPIRED)
+        );
+
+        if (occupied) {
+            throw new RuntimeException("Bu doktorun bu tarih/saat için zaten randevusu var.");
+        }
 
         Appointment a = new Appointment();
         a.setPatient(patient);
@@ -80,29 +221,41 @@ public class PatientController {
         a.setClinic(dentist.getClinic());
         a.setAppointmentDatetime(dt);
         a.setStatus(AppointmentStatus.SCHEDULED);
-
         appointmentRepository.save(a);
+
+        double unitPrice = (treatment.getDefaultPrice() != null) ? treatment.getDefaultPrice() : 0.0;
+        int qty = 1;
+        double totalPrice = unitPrice * qty;
+
+        AppointmentTreatment at = new AppointmentTreatment();
+        at.setAppointment(a);
+        at.setTreatment(treatment);
+        at.setQuantity(qty);
+        at.setUnitPrice(unitPrice);
+        at.setTotalPrice(totalPrice);
+        appointmentTreatmentRepository.save(at);
 
         return "redirect:/patient/home";
     }
 
     @PostMapping("/patient/appointments/{id}/confirm-attendance")
     public String confirmAttendance(@PathVariable Long id, Authentication authentication) {
+
         Appointment a = appointmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Randevu bulunamadı: " + id));
 
         String email = authentication.getName();
+
         if (a.getPatient() == null
                 || a.getPatient().getUserAccount() == null
                 || !email.equals(a.getPatient().getUserAccount().getEmail())) {
             throw new RuntimeException("Bu randevu üzerinde işlem yetkin yok.");
         }
 
-        if (a.getAppointmentDatetime().isBefore(LocalDateTime.now())) {
+        if (a.getAppointmentDatetime() == null || a.getAppointmentDatetime().isBefore(LocalDateTime.now())) {
             throw new RuntimeException("Bu randevunun tarihi geçmiş.");
         }
 
-        // 24 saat kala onay
         LocalDateTime now = LocalDateTime.now();
         if (a.getAppointmentDatetime().isAfter(now.plusHours(24))) {
             throw new RuntimeException("Randevuya 24 saatten fazla var, henüz onay veremezsin.");
@@ -115,6 +268,35 @@ public class PatientController {
         }
 
         a.setStatus(AppointmentStatus.PATIENT_CONFIRMED);
+        appointmentRepository.save(a);
+
+        return "redirect:/patient/home";
+    }
+
+    @PostMapping("/patient/appointments/{id}/cancel")
+    public String cancelAppointment(@PathVariable Long id, Authentication authentication) {
+
+        Appointment a = appointmentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Randevu bulunamadı: " + id));
+
+        String email = authentication.getName();
+
+        if (a.getPatient() == null
+                || a.getPatient().getUserAccount() == null
+                || !email.equals(a.getPatient().getUserAccount().getEmail())) {
+            throw new RuntimeException("Bu randevu üzerinde işlem yetkin yok.");
+        }
+
+        if (a.getAppointmentDatetime() == null || a.getAppointmentDatetime().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Geçmiş randevu iptal edilemez.");
+        }
+
+        if (a.getStatus() != AppointmentStatus.SCHEDULED
+                && a.getStatus() != AppointmentStatus.PATIENT_CONFIRMED) {
+            throw new RuntimeException("Bu randevu bu durumda iptal edilemez: " + a.getStatus());
+        }
+
+        a.setStatus(AppointmentStatus.CANCELLED);
         appointmentRepository.save(a);
 
         return "redirect:/patient/home";

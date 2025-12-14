@@ -7,26 +7,77 @@
 <body>
 <h1>Yeni Randevu Oluştur</h1>
 
-<form th:action="@{/patient/appointments}" method="post">
+<form th:action="@{/patient/appointments/new}" method="get">
     <div>
         <label for="dentistId">Doktor:</label>
         <select id="dentistId" name="dentistId" required>
-            <option value="" disabled selected>Doktor seç</option>
+            <option value="" disabled th:selected="${selectedDentistId == null}">Doktor seç</option>
             <option th:each="d : ${dentists}"
                     th:value="${d.id}"
-                    th:text="${d.firstName + ' ' + d.lastName}">
+                    th:text="${d.firstName + ' ' + d.lastName}"
+                    th:selected="${selectedDentistId != null and d.id == selectedDentistId}">
             </option>
         </select>
     </div>
 
-    <div>
-        <label for="appointmentDatetime">Tarih/Saat:</label>
-        <input id="appointmentDatetime" name="appointmentDatetime" type="datetime-local" required>
+    <div style="margin-top: 10px;">
+        <label for="treatmentId">İşlem (Alan):</label>
+        <select id="treatmentId" name="treatmentId" required>
+            <option value="" disabled th:selected="${selectedTreatmentId == null}">İşlem seç</option>
+            <option th:each="t : ${treatments}"
+                    th:value="${t.id}"
+                    th:text="${t.name}"
+                    th:selected="${selectedTreatmentId != null and t.id == selectedTreatmentId}">
+            </option>
+        </select>
     </div>
 
-    <button type="submit">Kaydet</button>
+    <div style="margin-top: 10px;">
+        <label for="date">Tarih:</label>
+        <input id="date" name="date" type="date" required
+               th:value="${selectedDate != null ? selectedDate : ''}">
+    </div>
+
+    <button type="submit" style="margin-top: 12px;">Uygun Saatleri Göster</button>
 </form>
 
-<p><a th:href="@{/patient/home}">Geri dön</a></p>
+<hr/>
+
+<div th:if="${slots != null}">
+    <h3>Uygun Saatler</h3>
+
+    <div th:if="${#lists.isEmpty(slots)}">
+        <p>Bu tarih için uygun saat yok.</p>
+    </div>
+
+    <form th:if="${!#lists.isEmpty(slots)}" th:action="@{/patient/appointments}" method="post">
+        <input type="hidden" name="dentistId" th:value="${selectedDentistId}"/>
+        <input type="hidden" name="treatmentId" th:value="${selectedTreatmentId}"/>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <label th:each="s : ${slots}" style="border:1px solid #ccc; padding:8px 12px; border-radius:10px; cursor:pointer;">
+                <input type="radio" name="appointmentDatetime"
+                       th:value="${#temporals.format(s, 'yyyy-MM-dd''T''HH:mm:ss')}"
+                       required>
+                <span th:text="${#temporals.format(s, 'HH:mm')}"></span>
+            </label>
+        </div>
+
+        <button type="submit" style="margin-top: 12px;">Kaydet</button>
+    </form>
+</div>
+
+<p style="margin-top: 18px;"><a th:href="@{/patient/home}">Geri dön</a></p>
+
+<script>
+    (function () {
+        const dateInput = document.getElementById("date");
+        const now = new Date();
+        const pad = n => String(n).padStart(2, "0");
+        const min = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+        dateInput.min = min;
+    })();
+</script>
+
 </body>
 </html>
