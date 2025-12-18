@@ -38,82 +38,34 @@ public class Appointment {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    public Appointment() {
-    }
+    @Column(name = "archived_at")
+    private LocalDateTime archivedAt;
+
+    public Appointment() {}
 
     @PrePersist
     void prePersist() {
-        if (createdAt == null) {
-            createdAt = LocalDateTime.now();
-        }
-        if (status == null) {
-            status = AppointmentStatus.SCHEDULED;
-        }
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (status == null) status = AppointmentStatus.SCHEDULED;
     }
 
-    // GETTER / SETTER
+    public Long getId() { return id; }
+    public Patient getPatient() { return patient; }
+    public Dentist getDentist() { return dentist; }
+    public Clinic getClinic() { return clinic; }
+    public LocalDateTime getAppointmentDatetime() { return appointmentDatetime; }
+    public AppointmentStatus getStatus() { return status; }
+    public String getNotes() { return notes; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getArchivedAt() { return archivedAt; }
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Patient getPatient() {
-        return patient;
-    }
-
-    public void setPatient(Patient patient) {
-        this.patient = patient;
-    }
-
-    public Dentist getDentist() {
-        return dentist;
-    }
-
-    public void setDentist(Dentist dentist) {
-        this.dentist = dentist;
-    }
-
-    public Clinic getClinic() {
-        return clinic;
-    }
-
-    public void setClinic(Clinic clinic) {
-        this.clinic = clinic;
-    }
-
-    public LocalDateTime getAppointmentDatetime() {
-        return appointmentDatetime;
-    }
-
-    public void setAppointmentDatetime(LocalDateTime appointmentDatetime) {
-        this.appointmentDatetime = appointmentDatetime;
-    }
-
-    public AppointmentStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(AppointmentStatus status) {
-        this.status = status;
-    }
-
-    public String getNotes() {
-        return notes;
-    }
-
-    public void setNotes(String notes) {
-        this.notes = notes;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
+    public void setId(Long id) { this.id = id; }
+    public void setPatient(Patient patient) { this.patient = patient; }
+    public void setDentist(Dentist dentist) { this.dentist = dentist; }
+    public void setClinic(Clinic clinic) { this.clinic = clinic; }
+    public void setAppointmentDatetime(LocalDateTime appointmentDatetime) { this.appointmentDatetime = appointmentDatetime; }
+    public void setStatus(AppointmentStatus status) { this.status = status; }
+    public void setNotes(String notes) { this.notes = notes; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public void setArchivedAt(LocalDateTime archivedAt) { this.archivedAt = archivedAt; }
 }

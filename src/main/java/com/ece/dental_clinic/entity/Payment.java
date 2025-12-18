@@ -1,5 +1,6 @@
 package com.ece.dental_clinic.entity;
 
+import com.ece.dental_clinic.enums.PaymentMethod;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -20,13 +21,14 @@ public class Payment {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
-    @Column(name = "payment_datetime")
+    @Column(name = "payment_datetime", nullable = false)
     private LocalDateTime paymentDatetime = LocalDateTime.now();
 
-    @Column(name = "payment_method", length = 30)
-    private String paymentMethod;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method", nullable = false, length = 30)
+    private PaymentMethod paymentMethod = PaymentMethod.CASH;
 
-    @Column(name = "payment_status", length = 20)
+    @Column(name = "payment_status", nullable = false, length = 20)
     private String paymentStatus = "SUCCESS";
 
     @Column(name = "transaction_no", length = 100)
@@ -48,7 +50,7 @@ public class Payment {
         return paymentDatetime;
     }
 
-    public String getPaymentMethod() {
+    public PaymentMethod getPaymentMethod() {
         return paymentMethod;
     }
 
@@ -76,7 +78,7 @@ public class Payment {
         this.paymentDatetime = paymentDatetime;
     }
 
-    public void setPaymentMethod(String paymentMethod) {
+    public void setPaymentMethod(PaymentMethod paymentMethod) {
         this.paymentMethod = paymentMethod;
     }
 

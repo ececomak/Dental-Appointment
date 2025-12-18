@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="tr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Fatura</title>
+</head>
+<body>
+
+<h1>Fatura</h1>
+
+<div>
+    <p><b>Fatura ID:</b> <span th:text="${invoice.id}"></span></p>
+    <p><b>Durum:</b> <span th:text="${invoice.status}"></span></p>
+    <p><b>Tutar:</b> <span th:text="${invoice.finalAmount}"></span> TL</p>
+    <p><b>Son Ödeme:</b> <span th:text="${invoice.dueDate}"></span></p>
+</div>
+
+<p><a th:href="@{/dentist/home}">Geri dön</a></p>
+
+</body>
+</html>

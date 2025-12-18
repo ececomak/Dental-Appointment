@@ -28,7 +28,6 @@ public class Treatment {
     public Treatment() {
     }
 
-    // GETTER / SETTER
 
     public Long getId() {
         return id;

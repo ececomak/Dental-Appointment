@@ -9,6 +9,43 @@
 
 <h2>Randevularım</h2>
 
+<form method="get" th:action="@{/patient/home}" style="margin-bottom:12px;">
+    <label>
+        <input type="checkbox" name="hidePast" value="true" th:checked="${hidePast}">
+        Geçmiş randevuları gizle
+    </label>
+
+    <label style="margin-left:10px;">
+        Son
+        <input type="number" name="days" min="1" style="width:70px" th:value="${days}">
+        gün
+    </label>
+
+    <label style="margin-left:10px;">
+        Durum:
+        <select name="status">
+            <option value="">Hepsi</option>
+            <option th:each="s : ${statuses}"
+                    th:value="${s.name()}"
+                    th:selected="${statusRaw != null and statusRaw.toUpperCase() == s.name()}"
+                    th:text="${s.name()}"></option>
+        </select>
+    </label>
+
+    <label style="margin-left:10px;">
+        Doktor:
+        <select name="dentistId">
+            <option value="">Hepsi</option>
+            <option th:each="d : ${dentists}"
+                    th:value="${d.id}"
+                    th:selected="${dentistId != null and dentistId == d.id}"
+                    th:text="${d.firstName + ' ' + d.lastName}"></option>
+        </select>
+    </label>
+
+    <button type="submit" style="margin-left:10px;">Uygula</button>
+</form>
+
 <div th:if="${appointments == null or #lists.isEmpty(appointments)}">
     <p>Henüz randevu yok.</p>
 </div>
@@ -28,94 +65,73 @@
     <tbody>
     <tr th:each="a : ${appointments}">
         <td th:text="${a.appointmentDatetime != null ? #temporals.format(a.appointmentDatetime, 'dd.MM.yyyy HH:mm') : '-'}"></td>
-
         <td th:text="${a.dentist != null ? (a.dentist.firstName + ' ' + a.dentist.lastName) : '-'}"></td>
-
         <td th:text="${treatmentByAppointmentId != null and a.id != null and treatmentByAppointmentId.containsKey(a.id) ? treatmentByAppointmentId.get(a.id) : '-'}"></td>
-
         <td th:text="${a.status != null ? a.status : '-'}"></td>
 
         <td>
             <span th:if="${invoiceByAppointmentId == null or a.id == null or !invoiceByAppointmentId.containsKey(a.id)}">-</span>
 
             <span th:if="${invoiceByAppointmentId != null and a.id != null and invoiceByAppointmentId.containsKey(a.id)}"
-                  th:text="${invoiceByAppointmentId.get(a.id).finalAmount + ' TL (' + invoiceByAppointmentId.get(a.id).status + ')'}">
-            </span>
+                  th:text="${invoiceByAppointmentId.get(a.id).finalAmount + ' TL (' + invoiceByAppointmentId.get(a.id).status + ')'}"></span>
 
             <a th:if="${invoiceByAppointmentId != null and a.id != null and invoiceByAppointmentId.containsKey(a.id)}"
                th:href="@{'/patient/invoices/' + ${invoiceByAppointmentId.get(a.id).id}}"
-               style="margin-left:8px;">
-                Detay
-            </a>
+               style="margin-left:8px;">Detay</a>
         </td>
 
         <td>
-            <form
-                    th:if="${a.status != null
-                        and a.status.name() == 'SCHEDULED'
-                        and a.appointmentDatetime != null
-                        and a.appointmentDatetime.isAfter(T(java.time.LocalDateTime).now())
-                        and a.appointmentDatetime.isBefore(T(java.time.LocalDateTime).now().plusHours(24))}"
-                    th:action="@{'/patient/appointments/' + ${a.id} + '/confirm-attendance'}"
-                    method="post"
-                    style="display:inline;"
-            >
+            <form th:if="${a.status != null
+          and a.status.name() == 'SCHEDULED'
+          and a.appointmentDatetime != null
+          and a.appointmentDatetime.isAfter(T(java.time.LocalDateTime).now())
+          and a.appointmentDatetime.isBefore(T(java.time.LocalDateTime).now().plusHours(24))}"
+                  th:action="@{'/patient/appointments/' + ${a.id} + '/confirm-attendance'}"
+                  method="post" style="display:inline;">
                 <button type="submit">Katılacağım</button>
             </form>
 
-            <form
-                    th:if="${a.status != null
-                        and (a.status.name() == 'SCHEDULED' or a.status.name() == 'PATIENT_CONFIRMED')
-                        and a.appointmentDatetime != null
-                        and a.appointmentDatetime.isAfter(T(java.time.LocalDateTime).now())}"
-                    th:action="@{'/patient/appointments/' + ${a.id} + '/cancel'}"
-                    method="post"
-                    style="display:inline; margin-left: 6px;"
-            >
+            <form th:if="${a.status != null
+          and (a.status.name() == 'SCHEDULED' or a.status.name() == 'PATIENT_CONFIRMED')
+          and a.appointmentDatetime != null
+          and a.appointmentDatetime.isAfter(T(java.time.LocalDateTime).now())}"
+                  th:action="@{'/patient/appointments/' + ${a.id} + '/cancel'}"
+                  method="post" style="display:inline; margin-left:6px;">
                 <button type="submit">İptal</button>
             </form>
 
-            <form
-                    th:if="${invoiceByAppointmentId != null
-                        and a.id != null
-                        and invoiceByAppointmentId.containsKey(a.id)
-                        and invoiceByAppointmentId.get(a.id).status != null
-                        and invoiceByAppointmentId.get(a.id).status.name() == 'UNPAID'}"
-                    th:action="@{'/patient/invoices/' + ${invoiceByAppointmentId.get(a.id).id} + '/pay'}"
-                    method="post"
-                    style="display:inline; margin-left: 6px;"
-            >
-                <button type="submit">Öde</button>
+            <a th:if="${invoiceByAppointmentId != null and a.id != null and invoiceByAppointmentId.containsKey(a.id)
+          and invoiceByAppointmentId.get(a.id).status != null
+          and (invoiceByAppointmentId.get(a.id).status.name() == 'UNPAID' or invoiceByAppointmentId.get(a.id).status.name() == 'PARTIALLY_PAID')}"
+               th:href="@{'/patient/invoices/' + ${invoiceByAppointmentId.get(a.id).id}}"
+               style="display:inline-block; margin-left:6px;">Öde</a>
+
+            <form th:if="${a.status != null
+          and (a.status.name() == 'COMPLETED' or a.status.name() == 'CANCELLED' or a.status.name() == 'EXPIRED')
+          and (invoiceByAppointmentId == null or a.id == null or !invoiceByAppointmentId.containsKey(a.id)
+               or (invoiceByAppointmentId.get(a.id).status.name() == 'PAID' or invoiceByAppointmentId.get(a.id).status.name() == 'CANCELLED'))}"
+                  th:action="@{'/patient/appointments/' + ${a.id} + '/archive'}"
+                  method="post" style="display:inline; margin-left:6px;">
+                <button type="submit">Sil</button>
             </form>
 
-            <span
-                    th:if="${!(
-                    (a.status != null
-                        and a.status.name() == 'SCHEDULED'
-                        and a.appointmentDatetime != null
-                        and a.appointmentDatetime.isAfter(T(java.time.LocalDateTime).now())
-                        and a.appointmentDatetime.isBefore(T(java.time.LocalDateTime).now().plusHours(24)))
-                    or
-                    (a.status != null
-                        and (a.status.name() == 'SCHEDULED' or a.status.name() == 'PATIENT_CONFIRMED')
-                        and a.appointmentDatetime != null
-                        and a.appointmentDatetime.isAfter(T(java.time.LocalDateTime).now()))
-                    or
-                    (invoiceByAppointmentId != null
-                        and a.id != null
-                        and invoiceByAppointmentId.containsKey(a.id)
-                        and invoiceByAppointmentId.get(a.id).status != null
-                        and invoiceByAppointmentId.get(a.id).status.name() == 'UNPAID')
-                )}"
-                    style="margin-left: 6px;"
-            >-</span>
+            <span style="margin-left:6px;">-</span>
         </td>
     </tr>
     </tbody>
 </table>
 
+<div th:if="${apPage != null and apPage.totalPages > 1}" style="margin-top:12px;">
+    <a th:if="${apPage.hasPrevious()}"
+       th:href="@{/patient/home(page=${apPage.number-1}, hidePast=${hidePast}, days=${days}, status=${statusRaw}, dentistId=${dentistId})}">← Önceki</a>
+
+    <span style="margin:0 10px;" th:text="${(apPage.number+1) + ' / ' + apPage.totalPages}"></span>
+
+    <a th:if="${apPage.hasNext()}"
+       th:href="@{/patient/home(page=${apPage.number+1}, hidePast=${hidePast}, days=${days}, status=${statusRaw}, dentistId=${dentistId})}">Sonraki →</a>
+</div>
+
 <p><a th:href="@{/patient/appointments/new}">Yeni randevu oluştur</a></p>
 <p><a th:href="@{/logout}">Çıkış yap</a></p>
-
 </body>
 </html>

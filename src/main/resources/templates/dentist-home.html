@@ -9,11 +9,41 @@
 
 <h2>Randevu Listem</h2>
 
-<div th:if="${#lists.isEmpty(appointments)}">
+<div th:if="${err != null}" style="margin:10px 0; padding:8px; border:1px solid #999;">
+    <span th:if="${err == 'unpaid'}">Ödenmemiş/eksik ödenmiş fatura var, bu kayıt silinemez.</span>
+</div>
+
+<form method="get" th:action="@{/dentist/home}" style="margin-bottom:12px;">
+    <label>
+        <input type="checkbox" name="hidePast" value="true" th:checked="${hidePast}">
+        Geçmiş randevuları gizle
+    </label>
+
+    <label style="margin-left:10px;">
+        Son
+        <input type="number" name="days" min="1" style="width:70px" th:value="${days}">
+        gün
+    </label>
+
+    <label style="margin-left:10px;">
+        Durum:
+        <select name="status">
+            <option value="">Hepsi</option>
+            <option th:each="s : ${statuses}"
+                    th:value="${s.name()}"
+                    th:selected="${statusRaw != null and statusRaw.toUpperCase() == s.name()}"
+                    th:text="${s.name()}"></option>
+        </select>
+    </label>
+
+    <button type="submit" style="margin-left:10px;">Uygula</button>
+</form>
+
+<div th:if="${appointments == null or #lists.isEmpty(appointments)}">
     <p>Henüz randevu yok.</p>
 </div>
 
-<table th:if="${!#lists.isEmpty(appointments)}" border="1" cellpadding="10">
+<table th:if="${appointments != null and !#lists.isEmpty(appointments)}" border="1" cellpadding="10">
     <thead>
     <tr>
         <th>Tarih/Saat</th>
@@ -27,9 +57,7 @@
     <tr th:each="a : ${appointments}">
         <td th:text="${#temporals.format(a.appointmentDatetime, 'dd.MM.yyyy HH:mm')}"></td>
         <td th:text="${a.patient.firstName + ' ' + a.patient.lastName}"></td>
-
         <td th:text="${treatmentByAppointmentId != null and a.id != null and treatmentByAppointmentId.containsKey(a.id) ? treatmentByAppointmentId.get(a.id) : '-'}"></td>
-
         <td th:text="${a.status}"></td>
 
         <td>
@@ -51,10 +79,30 @@
                 <button type="submit">Tamamlandı</button>
             </form>
 
+            <a th:if="${invoiceIdByAppointmentId != null and a.id != null and invoiceIdByAppointmentId.containsKey(a.id)}"
+               th:href="@{'/dentist/invoices/' + ${invoiceIdByAppointmentId.get(a.id)}}">Fatura</a>
+            <span th:if="${invoiceIdByAppointmentId == null or a.id == null or !invoiceIdByAppointmentId.containsKey(a.id)}">-</span>
+
+            <form th:if="${a.status != null
+          and (a.status.name() == 'COMPLETED' or a.status.name() == 'CANCELLED' or a.status.name() == 'EXPIRED')}"
+                  th:action="@{'/dentist/appointments/' + ${a.id} + '/archive'}"
+                  method="post" style="display:inline; margin-left:6px;">
+                <button type="submit">Sil</button>
+            </form>
         </td>
     </tr>
     </tbody>
 </table>
+
+<div th:if="${apPage != null and apPage.totalPages > 1}" style="margin-top:12px;">
+    <a th:if="${apPage.hasPrevious()}"
+       th:href="@{/dentist/home(page=${apPage.number-1}, hidePast=${hidePast}, days=${days}, status=${statusRaw})}">← Önceki</a>
+
+    <span style="margin:0 10px;" th:text="${(apPage.number+1) + ' / ' + apPage.totalPages}"></span>
+
+    <a th:if="${apPage.hasNext()}"
+       th:href="@{/dentist/home(page=${apPage.number+1}, hidePast=${hidePast}, days=${days}, status=${statusRaw})}">Sonraki →</a>
+</div>
 
 <p><a th:href="@{/logout}">Çıkış yap</a></p>
 </body>

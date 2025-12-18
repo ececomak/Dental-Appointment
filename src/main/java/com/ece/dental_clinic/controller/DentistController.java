@@ -1,19 +1,16 @@
 package com.ece.dental_clinic.controller;
 
-import com.ece.dental_clinic.entity.Appointment;
-import com.ece.dental_clinic.entity.AppointmentTreatment;
-import com.ece.dental_clinic.enums.AppointmentStatus;
-import com.ece.dental_clinic.repository.AppointmentRepository;
-import com.ece.dental_clinic.repository.AppointmentTreatmentRepository;
-import com.ece.dental_clinic.repository.InvoiceRepository;
+import com.ece.dental_clinic.entity.*;
+import com.ece.dental_clinic.enums.*;
+import com.ece.dental_clinic.repository.*;
+import org.springframework.data.domain.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -38,8 +35,15 @@ public class DentistController {
     }
 
     @GetMapping("/dentist/home")
-    public String dentistHome(Authentication authentication, Model model) {
-
+    public String dentistHome(
+            Authentication authentication,
+            Model model,
+            @RequestParam(value = "hidePast", required = false, defaultValue = "true") boolean hidePast,
+            @RequestParam(value = "days", required = false, defaultValue = "30") int days,
+            @RequestParam(value = "status", required = false) String statusRaw,
+            @RequestParam(value = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(value = "err", required = false) String err
+    ) {
         appointmentRepository.expirePastAppointments(
                 LocalDateTime.now(),
                 AppointmentStatus.EXPIRED,
@@ -47,9 +51,24 @@ public class DentistController {
         );
 
         String email = authentication.getName();
-        List<Appointment> appointments =
-                appointmentRepository.findByDentist_UserAccount_EmailOrderByAppointmentDatetimeDesc(email);
 
+        AppointmentStatus status = null;
+        if (statusRaw != null && !statusRaw.isBlank()) {
+            status = AppointmentStatus.valueOf(statusRaw.trim().toUpperCase());
+        }
+
+        LocalDateTime fromDate = null;
+        if (hidePast) {
+            fromDate = LocalDateTime.now().minusDays(Math.max(days, 1));
+        }
+
+        Pageable pageable = PageRequest.of(Math.max(page, 0), 10);
+        Page<Appointment> apPage = appointmentRepository.pageDentistAppointments(
+                email, fromDate, null, status, pageable
+        );
+
+        List<Appointment> appointments = apPage.getContent();
+        model.addAttribute("apPage", apPage);
         model.addAttribute("appointments", appointments);
 
         Map<Long, String> treatmentByAppointmentId = new HashMap<>();
@@ -77,6 +96,20 @@ public class DentistController {
 
         model.addAttribute("treatmentByAppointmentId", treatmentByAppointmentId);
 
+        Map<Long, Long> invoiceIdByAppointmentId = new HashMap<>();
+        for (Appointment a : appointments) {
+            if (a.getId() == null) continue;
+            invoiceRepository.findByAppointment_Id(a.getId())
+                    .ifPresent(inv -> invoiceIdByAppointmentId.put(a.getId(), inv.getId()));
+        }
+        model.addAttribute("invoiceIdByAppointmentId", invoiceIdByAppointmentId);
+
+        model.addAttribute("hidePast", hidePast);
+        model.addAttribute("days", days);
+        model.addAttribute("statusRaw", statusRaw);
+        model.addAttribute("statuses", AppointmentStatus.values());
+        model.addAttribute("err", err);
+
         return "dentist-home";
     }
 
@@ -86,15 +119,13 @@ public class DentistController {
                 .orElseThrow(() -> new RuntimeException("Randevu bulunamadı: " + id));
 
         String email = authentication.getName();
-        if (a.getDentist() == null
-                || a.getDentist().getUserAccount() == null
+        if (a.getDentist() == null || a.getDentist().getUserAccount() == null
                 || !email.equals(a.getDentist().getUserAccount().getEmail())) {
             throw new RuntimeException("Bu randevu üzerinde işlem yetkin yok.");
         }
 
         a.setStatus(AppointmentStatus.CONFIRMED);
         appointmentRepository.save(a);
-
         return "redirect:/dentist/home";
     }
 
@@ -104,27 +135,23 @@ public class DentistController {
                 .orElseThrow(() -> new RuntimeException("Randevu bulunamadı: " + id));
 
         String email = authentication.getName();
-        if (a.getDentist() == null
-                || a.getDentist().getUserAccount() == null
+        if (a.getDentist() == null || a.getDentist().getUserAccount() == null
                 || !email.equals(a.getDentist().getUserAccount().getEmail())) {
             throw new RuntimeException("Bu randevu üzerinde işlem yetkin yok.");
         }
 
         a.setStatus(AppointmentStatus.CANCELLED);
         appointmentRepository.save(a);
-
         return "redirect:/dentist/home";
     }
 
     @PostMapping("/dentist/appointments/{id}/complete")
     public String completeAppointment(@PathVariable Long id, Authentication authentication) {
-
         Appointment a = appointmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Randevu bulunamadı: " + id));
 
         String email = authentication.getName();
-        if (a.getDentist() == null
-                || a.getDentist().getUserAccount() == null
+        if (a.getDentist() == null || a.getDentist().getUserAccount() == null
                 || !email.equals(a.getDentist().getUserAccount().getEmail())) {
             throw new RuntimeException("Bu randevu üzerinde işlem yetkin yok.");
         }
@@ -138,5 +165,52 @@ public class DentistController {
         }
 
         return "redirect:/dentist/home";
+    }
+
+    @PostMapping("/dentist/appointments/{id}/archive")
+    public String archiveAppointmentAsDentist(@PathVariable Long id, Authentication authentication) {
+        Appointment a = appointmentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Randevu bulunamadı: " + id));
+
+        String email = authentication.getName();
+        if (a.getDentist() == null || a.getDentist().getUserAccount() == null
+                || !email.equals(a.getDentist().getUserAccount().getEmail())) {
+            throw new RuntimeException("Bu randevu üzerinde işlem yetkin yok.");
+        }
+
+        if (!(a.getStatus() == AppointmentStatus.COMPLETED
+                || a.getStatus() == AppointmentStatus.CANCELLED
+                || a.getStatus() == AppointmentStatus.EXPIRED)) {
+            throw new RuntimeException("Aktif randevu arşivlenemez.");
+        }
+
+        Optional<Invoice> invOpt = invoiceRepository.findByAppointment_Id(a.getId());
+        if (invOpt.isPresent()) {
+            InvoiceStatus st = invOpt.get().getStatus();
+            if (st == InvoiceStatus.UNPAID || st == InvoiceStatus.PARTIALLY_PAID) {
+                return "redirect:/dentist/home?err=unpaid";
+            }
+        }
+
+        a.setArchivedAt(LocalDateTime.now());
+        appointmentRepository.save(a);
+        return "redirect:/dentist/home";
+    }
+
+    @GetMapping("/dentist/invoices/{invoiceId}")
+    public String dentistViewInvoice(@PathVariable Long invoiceId, Authentication authentication, Model model) {
+        Invoice inv = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Fatura bulunamadı: " + invoiceId));
+
+        String email = authentication.getName();
+        boolean isOwner = inv.getAppointment() != null
+                && inv.getAppointment().getDentist() != null
+                && inv.getAppointment().getDentist().getUserAccount() != null
+                && email.equals(inv.getAppointment().getDentist().getUserAccount().getEmail());
+
+        if (!isOwner) throw new RuntimeException("Bu faturayı görme yetkin yok.");
+
+        model.addAttribute("invoice", inv);
+        return "dentist-invoice";
     }
 }

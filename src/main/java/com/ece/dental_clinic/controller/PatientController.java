@@ -1,8 +1,9 @@
 package com.ece.dental_clinic.controller;
 
 import com.ece.dental_clinic.entity.*;
-import com.ece.dental_clinic.enums.AppointmentStatus;
+import com.ece.dental_clinic.enums.*;
 import com.ece.dental_clinic.repository.*;
+import org.springframework.data.domain.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -44,8 +45,15 @@ public class PatientController {
     }
 
     @GetMapping("/patient/home")
-    public String patientHome(Authentication authentication, Model model) {
-
+    public String patientHome(
+            Authentication authentication,
+            Model model,
+            @RequestParam(value = "hidePast", required = false, defaultValue = "true") boolean hidePast,
+            @RequestParam(value = "days", required = false, defaultValue = "30") int days,
+            @RequestParam(value = "status", required = false) String statusRaw,
+            @RequestParam(value = "dentistId", required = false) Long dentistId,
+            @RequestParam(value = "page", required = false, defaultValue = "0") int page
+    ) {
         appointmentRepository.expirePastAppointments(
                 LocalDateTime.now(),
                 AppointmentStatus.EXPIRED,
@@ -54,14 +62,26 @@ public class PatientController {
 
         String email = authentication.getName();
 
-        List<Appointment> appointments =
-                appointmentRepository.findByPatient_UserAccount_EmailOrderByAppointmentDatetimeDesc(email);
+        AppointmentStatus status = null;
+        if (statusRaw != null && !statusRaw.isBlank()) {
+            status = AppointmentStatus.valueOf(statusRaw.trim().toUpperCase());
+        }
 
+        LocalDateTime fromDate = null;
+        if (hidePast) {
+            fromDate = LocalDateTime.now().minusDays(Math.max(days, 1));
+        }
+
+        Pageable pageable = PageRequest.of(Math.max(page, 0), 10); // 10 satır/sayfa
+        Page<Appointment> apPage = appointmentRepository.pagePatientAppointments(
+                email, fromDate, null, status, dentistId, pageable
+        );
+
+        List<Appointment> appointments = apPage.getContent();
+        model.addAttribute("apPage", apPage);
         model.addAttribute("appointments", appointments);
 
         Map<Long, String> treatmentByAppointmentId = new HashMap<>();
-        Map<Long, Invoice> invoiceByAppointmentId = new HashMap<>();
-
         List<Long> appointmentIds = appointments.stream()
                 .map(Appointment::getId)
                 .filter(Objects::nonNull)
@@ -82,17 +102,56 @@ public class PatientController {
                         .collect(Collectors.joining(", "));
                 treatmentByAppointmentId.put(e.getKey(), names);
             }
+        }
 
-            for (Long appointmentId : appointmentIds) {
-                invoiceRepository.findByAppointment_Id(appointmentId)
-                        .ifPresent(inv -> invoiceByAppointmentId.put(appointmentId, inv));
-            }
+        Map<Long, Invoice> invoiceByAppointmentId = new HashMap<>();
+        for (Long appointmentId : appointmentIds) {
+            invoiceRepository.findByAppointment_Id(appointmentId)
+                    .ifPresent(inv -> invoiceByAppointmentId.put(appointmentId, inv));
         }
 
         model.addAttribute("treatmentByAppointmentId", treatmentByAppointmentId);
         model.addAttribute("invoiceByAppointmentId", invoiceByAppointmentId);
 
+        model.addAttribute("hidePast", hidePast);
+        model.addAttribute("days", days);
+        model.addAttribute("statusRaw", statusRaw);
+        model.addAttribute("dentistId", dentistId);
+        model.addAttribute("dentists", dentistRepository.findAll());
+        model.addAttribute("statuses", AppointmentStatus.values());
+
         return "patient-home";
+    }
+
+    @PostMapping("/patient/appointments/{id}/archive")
+    public String archiveAppointmentAsPatient(@PathVariable Long id, Authentication authentication) {
+        Appointment a = appointmentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Randevu bulunamadı: " + id));
+
+        String email = authentication.getName();
+        if (a.getPatient() == null || a.getPatient().getUserAccount() == null
+                || !email.equals(a.getPatient().getUserAccount().getEmail())) {
+            throw new RuntimeException("Bu randevu üzerinde işlem yetkin yok.");
+        }
+
+        if (!(a.getStatus() == AppointmentStatus.COMPLETED
+                || a.getStatus() == AppointmentStatus.CANCELLED
+                || a.getStatus() == AppointmentStatus.EXPIRED)) {
+            throw new RuntimeException("Aktif randevu arşivlenemez.");
+        }
+
+        Optional<Invoice> invOpt = invoiceRepository.findByAppointment_Id(a.getId());
+        if (invOpt.isPresent()) {
+            InvoiceStatus st = invOpt.get().getStatus();
+            if (st == InvoiceStatus.UNPAID || st == InvoiceStatus.PARTIALLY_PAID) {
+                throw new RuntimeException("Ödenmemiş/eksik ödenmiş fatura varken arşivlenemez.");
+            }
+        }
+
+        a.setArchivedAt(LocalDateTime.now());
+        appointmentRepository.save(a);
+
+        return "redirect:/patient/home";
     }
 
     @GetMapping("/patient/appointments/new")
