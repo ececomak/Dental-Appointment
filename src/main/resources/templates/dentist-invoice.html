@@ -2,20 +2,37 @@
 <html lang="tr" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Fatura</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fatura - Merkez Diş Kliniği</title>
+    <link th:href="@{/css/style.css}" rel="stylesheet">
 </head>
 <body>
+    <header class="header">
+        <div class="header-content">
+            <div>
+                <div class="clinic-name">Merkez Diş Kliniği</div>
+                <div class="clinic-subtitle">Fatura Detayları</div>
+            </div>
+        </div>
+    </header>
 
-<h1>Fatura</h1>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title">Fatura Detayları</h1>
+            </div>
 
-<div>
-    <p><b>Fatura ID:</b> <span th:text="${invoice.id}"></span></p>
-    <p><b>Durum:</b> <span th:text="${invoice.status}"></span></p>
-    <p><b>Tutar:</b> <span th:text="${invoice.finalAmount}"></span> TL</p>
-    <p><b>Son Ödeme:</b> <span th:text="${invoice.dueDate}"></span></p>
-</div>
+            <div class="info-box">
+                <p><b>Fatura ID:</b> <span th:text="${invoice.id}"></span></p>
+                <p><b>Durum:</b> <span th:text="${invoice.status}"></span></p>
+                <p><b>Tutar:</b> <span th:text="${invoice.finalAmount}"></span> TL</p>
+                <p><b>Son Ödeme:</b> <span th:text="${invoice.dueDate}"></span></p>
+            </div>
 
-<p><a th:href="@{/dentist/home}">Geri dön</a></p>
-
+            <div class="nav-links">
+                <a th:href="@{/dentist/home}">← Geri dön</a>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

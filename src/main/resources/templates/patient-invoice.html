@@ -2,7 +2,9 @@
 <html lang="tr" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Fatura</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fatura - Merkez Diş Kliniği</title>
+    <link th:href="@{/css/style.css}" rel="stylesheet">
     <script>
         function toggleCardBox() {
             const methodEl = document.getElementById("method");
@@ -14,91 +16,110 @@
     </script>
 </head>
 <body>
-
-<h1>Fatura</h1>
-
-<div>
-    <p><b>Fatura ID:</b> <span th:text="${invoice.id}"></span></p>
-
-    <p>
-        <b>Durum:</b>
-        <span th:text="${invoice.status}"></span>
-        <span th:if="${overdue}" style="margin-left:8px; font-weight:bold;">OVERDUE</span>
-    </p>
-
-    <p><b>Tutar:</b> <span th:text="${invoice.finalAmount}"></span> TL</p>
-    <p><b>Ödenen:</b> <span th:text="${paidTotal}"></span> TL</p>
-    <p><b>Kalan:</b> <span th:text="${remaining}"></span> TL</p>
-    <p><b>Son Ödeme:</b> <span th:text="${invoice.dueDate}"></span></p>
-</div>
-
-<div th:if="${err != null}" style="margin:10px 0; padding:8px; border:1px solid #999;">
-    <span th:if="${err == '3ds'}">3D Secure başarısız. Tekrar dene.</span>
-    <span th:if="${err == 'card'}">Kart numarası 16 hane olmalı.</span>
-    <span th:if="${err == 'exp'}">Son kullanma tarihi MM/YY formatında olmalı.</span>
-    <span th:if="${err == 'cvv'}">CVV 3 hane olmalı.</span>
-    <span th:if="${err == 'brand'}">Kart markası seçmelisin.</span>
-    <span th:if="${err == 'amount'}">Tutar geçersiz.</span>
-</div>
-
-<form th:if="${remaining != null and remaining.signum() > 0 and invoice.status != null and invoice.status.name() != 'CANCELLED'}"
-      th:action="@{'/patient/invoices/' + ${invoice.id} + '/pay'}"
-      method="post">
-
-    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-
-    <div>
-        <label>Tutar</label>
-        <input type="text" name="amount" th:value="${remaining}" required>
-    </div>
-
-    <div>
-        <label>Ödeme Tipi</label>
-        <select id="method" name="method" required onchange="toggleCardBox()">
-            <option value="CASH">Nakit</option>
-            <option value="CARD">Kart</option>
-        </select>
-    </div>
-
-    <div id="cardBox" style="margin-top:12px; padding:10px; border:1px solid #ccc;">
-        <h3>Kart ile Ödeme (Demo)</h3>
-
-        <div>
-            <label>Kart Markası</label>
-            <select name="brand">
-                <option value="">Seç</option>
-                <option value="VISA">VISA</option>
-                <option value="MASTERCARD">Mastercard</option>
-                <option value="TROY">TROY</option>
-            </select>
+    <header class="header">
+        <div class="header-content">
+            <div>
+                <div class="clinic-name">Merkez Diş Kliniği</div>
+                <div class="clinic-subtitle">Fatura Detayları</div>
+            </div>
         </div>
+    </header>
 
-        <div>
-            <label>Kart Numarası</label>
-            <input type="text" name="cardNumber" placeholder="16 hane (boşluk yazsan da olur)">
-        </div>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title">Fatura Detayları</h1>
+            </div>
 
-        <div>
-            <label>Son Kullanma (MM/YY)</label>
-            <input type="text" name="exp" placeholder="12/28">
-        </div>
+            <div class="info-box">
+                <p><b>Fatura ID:</b> <span th:text="${invoice.id}"></span></p>
 
-        <div>
-            <label>CVV</label>
-            <input type="text" name="cvv" placeholder="123">
-        </div>
+                <p>
+                    <b>Durum:</b>
+                    <span th:text="${invoice.status}"></span>
+                    <span th:if="${overdue}" style="margin-left:8px; font-weight:bold; color: var(--danger);">OVERDUE</span>
+                </p>
 
-        <p style="font-size: 12px;">
-            * Kart bilgileri kaydedilmez. Demo 3D Secure: kart numarasının son hanesi çiftse başarılı.
-        </p>
-    </div>
+                <p><b>Tutar:</b> <span th:text="${invoice.finalAmount}"></span> TL</p>
+                <p><b>Ödenen:</b> <span th:text="${paidTotal}"></span> TL</p>
+                <p><b>Kalan:</b> <span th:text="${remaining}"></span> TL</p>
+                <p><b>Son Ödeme:</b> <span th:text="${invoice.dueDate}"></span></p>
+            </div>
 
-    <button type="submit" style="margin-top:10px;">Ödeme Yap</button>
-</form>
+            <div th:if="${err != null}" class="alert alert-error">
+                <span th:if="${err == '3ds'}">3D Secure başarısız. Tekrar dene.</span>
+                <span th:if="${err == 'card'}">Kart numarası 16 hane olmalı.</span>
+                <span th:if="${err == 'exp'}">Son kullanma tarihi MM/YY formatında olmalı.</span>
+                <span th:if="${err == 'cvv'}">CVV 3 hane olmalı.</span>
+                <span th:if="${err == 'brand'}">Kart markası seçmelisin.</span>
+                <span th:if="${err == 'amount'}">Tutar geçersiz.</span>
+            </div>
 
-<h2>Ödeme Geçmişi</h2>
+            <form th:if="${remaining != null and remaining.signum() > 0 and invoice.status != null and invoice.status.name() != 'CANCELLED'}"
+                  th:action="@{'/patient/invoices/' + ${invoice.id} + '/pay'}"
+                  method="post"
+                  class="payment-form">
 
-<table border="1" cellpadding="10" th:if="${payments != null and !#lists.isEmpty(payments)}">
+                <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+                <div class="form-group">
+                    <label>Tutar</label>
+                    <input type="text" name="amount" class="form-control" th:value="${remaining}" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Ödeme Tipi</label>
+                    <select id="method" name="method" class="form-control" required onchange="toggleCardBox()">
+                        <option value="CASH">Nakit</option>
+                        <option value="CARD">Kart</option>
+                    </select>
+                </div>
+
+                <div id="cardBox" class="payment-card-box" style="display: none;">
+                    <h3>Kart ile Ödeme (Demo)</h3>
+
+                    <div class="form-group">
+                        <label>Kart Markası</label>
+                        <select name="brand" class="form-control">
+                            <option value="">Seç</option>
+                            <option value="VISA">VISA</option>
+                            <option value="MASTERCARD">Mastercard</option>
+                            <option value="TROY">TROY</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Kart Numarası</label>
+                        <input type="text" name="cardNumber" class="form-control" placeholder="16 hane">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Son Kullanma (MM/YY)</label>
+                        <input type="text" name="exp" class="form-control" placeholder="12/28">
+                    </div>
+
+                    <div class="form-group">
+                        <label>CVV</label>
+                        <input type="text" name="cvv" class="form-control" placeholder="123">
+                    </div>
+
+                    <p class="payment-note">
+                        * Kart bilgileri kaydedilmez.
+                    </p>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Ödeme Yap</button>
+            </form>
+
+            <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid var(--light-gray);">
+                <h2 style="color: var(--primary-navy); margin-bottom: 20px;">Ödeme Geçmişi</h2>
+
+                <div th:if="${payments == null or #lists.isEmpty(payments)}" class="empty-state">
+                    <p>Henüz ödeme yapılmamıştır.</p>
+                </div>
+
+                <div th:if="${payments != null and !#lists.isEmpty(payments)}" class="table-container">
+                    <table>
     <thead>
     <tr>
         <th>Tarih</th>
@@ -116,12 +137,15 @@
         <td th:text="${p.paymentStatus}"></td>
         <td th:text="${p.transactionNo}"></td>
     </tr>
-    </tbody>
-</table>
+                    </tbody>
+                </table>
+                </div>
+            </div>
 
-<p th:if="${payments == null or #lists.isEmpty(payments)}">Henüz ödeme yok.</p>
-
-<p><a th:href="@{/patient/home}">Geri dön</a></p>
-
+            <div class="nav-links">
+                <a th:href="@{/patient/home}">← Geri dön</a>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

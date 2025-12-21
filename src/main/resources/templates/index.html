@@ -2,20 +2,35 @@
 <html lang="tr" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Diş Kliniği Otomasyonu</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merkez Diş Kliniği - Ana Sayfa</title>
+    <link th:href="@{/css/style.css}" rel="stylesheet">
 </head>
 <body>
-<h1>Diş Kliniği Otomasyonu</h1>
-<p>Uygulama başarıyla ayağa kalktı</p>
+    <header class="header">
+        <div class="header-content">
+            <div>
+                <div class="clinic-name">Merkez Diş Kliniği</div>
+                <div class="clinic-subtitle">Sağlıklı Gülüşler İçin Yanınızdayız</div>
+            </div>
+        </div>
+    </header>
 
-<ul>
-    <li>Buraya hasta girişi linki gelecek</li>
-    <li>Buraya doktor girişi linki gelecek</li>
-</ul>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title">Hoş Geldiniz</h1>
+            </div>
+            <div class="info-box">
+                <p>Merkez Diş Kliniği randevu sistemine hoş geldiniz. Hasta veya doktor olarak giriş yaparak sistemimizi kullanmaya başlayabilirsiniz.</p>
+            </div>
 
-<ul>
-    <li><a th:href="@{/login}">Hasta / Doktor girişi</a></li>
-</ul>
-
+            <div style="text-align: center; margin-top: 30px;">
+                <a th:href="@{/login}" class="btn btn-primary" style="font-size: 18px; padding: 15px 40px;">
+                    Giriş Yap
+                </a>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

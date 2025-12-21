@@ -2,48 +2,74 @@
 <html lang="tr" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Doktor Paneli</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doktor Paneli - Merkez Diş Kliniği</title>
+    <link th:href="@{/css/style.css}" rel="stylesheet">
 </head>
 <body>
-<h1>Doktor Paneli</h1>
+    <header class="header">
+        <div class="header-content">
+            <div>
+                <div class="clinic-name">Merkez Diş Kliniği</div>
+                <div class="clinic-subtitle">Doktor Paneli</div>
+            </div>
+        </div>
+    </header>
 
-<h2>Randevu Listem</h2>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title">
+                    Hoş geldin, 
+                    <span th:if="${dentist != null}" th:text="${dentist.firstName + ' ' + dentist.lastName}"></span>
+                    <span th:if="${dentist == null and #authentication != null and #authentication.principal != null}" 
+                          th:text="${#authentication.principal.username}"></span>
+                    <span th:if="${dentist == null and (#authentication == null or #authentication.principal == null)}">Doktor</span>
+                </h1>
+            </div>
 
-<div th:if="${err != null}" style="margin:10px 0; padding:8px; border:1px solid #999;">
-    <span th:if="${err == 'unpaid'}">Ödenmemiş/eksik ödenmiş fatura var, bu kayıt silinemez.</span>
-</div>
+            <div th:if="${err != null}" class="alert alert-error">
+                <span th:if="${err == 'unpaid'}">Ödenmemiş/eksik ödenmiş fatura var, bu kayıt silinemez.</span>
+            </div>
 
-<form method="get" th:action="@{/dentist/home}" style="margin-bottom:12px;">
-    <label>
-        <input type="checkbox" name="hidePast" value="true" th:checked="${hidePast}">
-        Geçmiş randevuları gizle
-    </label>
+            <form method="get" th:action="@{/dentist/home}" class="filter-form">
+                <div class="filter-group">
+                    <label>
+                        <input type="checkbox" name="hidePast" value="true" th:checked="${hidePast}">
+                        Geçmiş randevuları gizle
+                    </label>
+                </div>
 
-    <label style="margin-left:10px;">
-        Son
-        <input type="number" name="days" min="1" style="width:70px" th:value="${days}">
-        gün
-    </label>
+                <div class="filter-group">
+                    <label>
+                        Son
+                        <input type="number" name="days" min="1" th:value="${days}">
+                        gün
+                    </label>
+                </div>
 
-    <label style="margin-left:10px;">
-        Durum:
-        <select name="status">
-            <option value="">Hepsi</option>
-            <option th:each="s : ${statuses}"
-                    th:value="${s.name()}"
-                    th:selected="${statusRaw != null and statusRaw.toUpperCase() == s.name()}"
-                    th:text="${s.name()}"></option>
-        </select>
-    </label>
+                <div class="filter-group">
+                    <label>
+                        Durum:
+                        <select name="status" class="form-control">
+                            <option value="">Hepsi</option>
+                            <option th:each="s : ${statuses}"
+                                    th:value="${s.name()}"
+                                    th:selected="${statusRaw != null and statusRaw.toUpperCase() == s.name()}"
+                                    th:text="${s.name()}"></option>
+                        </select>
+                    </label>
+                </div>
 
-    <button type="submit" style="margin-left:10px;">Uygula</button>
-</form>
+                <button type="submit" class="btn btn-primary">Uygula</button>
+            </form>
 
-<div th:if="${appointments == null or #lists.isEmpty(appointments)}">
-    <p>Henüz randevu yok.</p>
-</div>
+            <div th:if="${appointments == null or #lists.isEmpty(appointments)}" class="empty-state">
+                <p>Henüz randevu bulunmamaktadır.</p>
+            </div>
 
-<table th:if="${appointments != null and !#lists.isEmpty(appointments)}" border="1" cellpadding="10">
+            <div th:if="${appointments != null and !#lists.isEmpty(appointments)}" class="table-container">
+                <table>
     <thead>
     <tr>
         <th>Tarih/Saat</th>
@@ -60,50 +86,55 @@
         <td th:text="${treatmentByAppointmentId != null and a.id != null and treatmentByAppointmentId.containsKey(a.id) ? treatmentByAppointmentId.get(a.id) : '-'}"></td>
         <td th:text="${a.status}"></td>
 
-        <td>
+        <td style="white-space: nowrap;">
             <form th:if="${a.status.name() == 'SCHEDULED'}"
                   th:action="@{'/dentist/appointments/' + ${a.id} + '/confirm'}"
                   method="post" style="display:inline;">
-                <button type="submit">Onayla</button>
+                <button type="submit" class="btn btn-success" style="padding: 6px 12px; font-size: 12px;">Onayla</button>
             </form>
 
             <form th:if="${a.status.name() != 'CANCELLED'}"
                   th:action="@{'/dentist/appointments/' + ${a.id} + '/cancel'}"
-                  method="post" style="display:inline;">
-                <button type="submit">İptal Et</button>
+                  method="post" style="display:inline; margin-left:6px;">
+                <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;">İptal Et</button>
             </form>
 
             <form th:if="${a.status.name() != 'COMPLETED' and a.status.name() != 'CANCELLED' and a.status.name() != 'EXPIRED'}"
                   th:action="@{'/dentist/appointments/' + ${a.id} + '/complete'}"
-                  method="post" style="display:inline;">
-                <button type="submit">Tamamlandı</button>
+                  method="post" style="display:inline; margin-left:6px;">
+                <button type="submit" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Tamamlandı</button>
             </form>
 
             <a th:if="${invoiceIdByAppointmentId != null and a.id != null and invoiceIdByAppointmentId.containsKey(a.id)}"
-               th:href="@{'/dentist/invoices/' + ${invoiceIdByAppointmentId.get(a.id)}}">Fatura</a>
-            <span th:if="${invoiceIdByAppointmentId == null or a.id == null or !invoiceIdByAppointmentId.containsKey(a.id)}">-</span>
+               th:href="@{'/dentist/invoices/' + ${invoiceIdByAppointmentId.get(a.id)}}"
+               class="btn btn-link" style="padding: 6px 12px; font-size: 12px; margin-left:6px;">Fatura</a>
 
             <form th:if="${a.status != null
           and (a.status.name() == 'COMPLETED' or a.status.name() == 'CANCELLED' or a.status.name() == 'EXPIRED')}"
                   th:action="@{'/dentist/appointments/' + ${a.id} + '/archive'}"
                   method="post" style="display:inline; margin-left:6px;">
-                <button type="submit">Sil</button>
+                <button type="submit" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Sil</button>
             </form>
         </td>
     </tr>
-    </tbody>
-</table>
+                </tbody>
+            </table>
+            </div>
 
-<div th:if="${apPage != null and apPage.totalPages > 1}" style="margin-top:12px;">
-    <a th:if="${apPage.hasPrevious()}"
-       th:href="@{/dentist/home(page=${apPage.number-1}, hidePast=${hidePast}, days=${days}, status=${statusRaw})}">← Önceki</a>
+            <div th:if="${apPage != null and apPage.totalPages > 1}" class="pagination">
+                <a th:if="${apPage.hasPrevious()}"
+                   th:href="@{/dentist/home(page=${apPage.number-1}, hidePast=${hidePast}, days=${days}, status=${statusRaw})}">← Önceki</a>
 
-    <span style="margin:0 10px;" th:text="${(apPage.number+1) + ' / ' + apPage.totalPages}"></span>
+                <span th:text="${(apPage.number+1) + ' / ' + apPage.totalPages}"></span>
 
-    <a th:if="${apPage.hasNext()}"
-       th:href="@{/dentist/home(page=${apPage.number+1}, hidePast=${hidePast}, days=${days}, status=${statusRaw})}">Sonraki →</a>
-</div>
+                <a th:if="${apPage.hasNext()}"
+                   th:href="@{/dentist/home(page=${apPage.number+1}, hidePast=${hidePast}, days=${days}, status=${statusRaw})}">Sonraki →</a>
+            </div>
 
-<p><a th:href="@{/logout}">Çıkış yap</a></p>
+            <div class="nav-links">
+                <a th:href="@{/logout}" class="btn btn-secondary">Çıkış Yap</a>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

@@ -2,55 +2,83 @@
 <html lang="tr" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Hasta Paneli</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hasta Paneli - Merkez Diş Kliniği</title>
+    <link th:href="@{/css/style.css}" rel="stylesheet">
 </head>
 <body>
-<h1>Hasta Paneli</h1>
+    <header class="header">
+        <div class="header-content">
+            <div>
+                <div class="clinic-name">Merkez Diş Kliniği</div>
+                <div class="clinic-subtitle">Hasta Paneli</div>
+            </div>
+        </div>
+    </header>
 
-<h2>Randevularım</h2>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title">
+                    Hoş geldin, 
+                    <span th:if="${patient != null}" th:text="${patient.firstName + ' ' + patient.lastName}"></span>
+                    <span th:if="${patient == null and #authentication != null and #authentication.principal != null}" 
+                          th:text="${#authentication.principal.username}"></span>
+                    <span th:if="${patient == null and (#authentication == null or #authentication.principal == null)}">Hasta</span>
+                </h1>
+            </div>
 
-<form method="get" th:action="@{/patient/home}" style="margin-bottom:12px;">
-    <label>
-        <input type="checkbox" name="hidePast" value="true" th:checked="${hidePast}">
-        Geçmiş randevuları gizle
-    </label>
+            <form method="get" th:action="@{/patient/home}" class="filter-form">
+                <div class="filter-group">
+                    <label>
+                        <input type="checkbox" name="hidePast" value="true" th:checked="${hidePast}">
+                        Geçmiş randevuları gizle
+                    </label>
+                </div>
 
-    <label style="margin-left:10px;">
-        Son
-        <input type="number" name="days" min="1" style="width:70px" th:value="${days}">
-        gün
-    </label>
+                <div class="filter-group">
+                    <label>
+                        Son
+                        <input type="number" name="days" min="1" th:value="${days}">
+                        gün
+                    </label>
+                </div>
 
-    <label style="margin-left:10px;">
-        Durum:
-        <select name="status">
-            <option value="">Hepsi</option>
-            <option th:each="s : ${statuses}"
-                    th:value="${s.name()}"
-                    th:selected="${statusRaw != null and statusRaw.toUpperCase() == s.name()}"
-                    th:text="${s.name()}"></option>
-        </select>
-    </label>
+                <div class="filter-group">
+                    <label>
+                        Durum:
+                        <select name="status" class="form-control">
+                            <option value="">Hepsi</option>
+                            <option th:each="s : ${statuses}"
+                                    th:value="${s.name()}"
+                                    th:selected="${statusRaw != null and statusRaw.toUpperCase() == s.name()}"
+                                    th:text="${s.name()}"></option>
+                        </select>
+                    </label>
+                </div>
 
-    <label style="margin-left:10px;">
-        Doktor:
-        <select name="dentistId">
-            <option value="">Hepsi</option>
-            <option th:each="d : ${dentists}"
-                    th:value="${d.id}"
-                    th:selected="${dentistId != null and dentistId == d.id}"
-                    th:text="${d.firstName + ' ' + d.lastName}"></option>
-        </select>
-    </label>
+                <div class="filter-group">
+                    <label>
+                        Doktor:
+                        <select name="dentistId" class="form-control">
+                            <option value="">Hepsi</option>
+                            <option th:each="d : ${dentists}"
+                                    th:value="${d.id}"
+                                    th:selected="${dentistId != null and dentistId == d.id}"
+                                    th:text="${d.firstName + ' ' + d.lastName}"></option>
+                        </select>
+                    </label>
+                </div>
 
-    <button type="submit" style="margin-left:10px;">Uygula</button>
-</form>
+                <button type="submit" class="btn btn-primary">Uygula</button>
+            </form>
 
-<div th:if="${appointments == null or #lists.isEmpty(appointments)}">
-    <p>Henüz randevu yok.</p>
-</div>
+            <div th:if="${appointments == null or #lists.isEmpty(appointments)}" class="empty-state">
+                <p>Henüz randevu bulunmamaktadır.</p>
+            </div>
 
-<table th:if="${appointments != null and !#lists.isEmpty(appointments)}" border="1" cellpadding="6">
+            <div th:if="${appointments != null and !#lists.isEmpty(appointments)}" class="table-container">
+                <table>
     <thead>
     <tr>
         <th>Tarih/Saat</th>
@@ -80,7 +108,7 @@
                style="margin-left:8px;">Detay</a>
         </td>
 
-        <td>
+        <td style="white-space: nowrap;">
             <form th:if="${a.status != null
           and a.status.name() == 'SCHEDULED'
           and a.appointmentDatetime != null
@@ -88,7 +116,7 @@
           and a.appointmentDatetime.isBefore(T(java.time.LocalDateTime).now().plusHours(24))}"
                   th:action="@{'/patient/appointments/' + ${a.id} + '/confirm-attendance'}"
                   method="post" style="display:inline;">
-                <button type="submit">Katılacağım</button>
+                <button type="submit" class="btn btn-success" style="padding: 6px 12px; font-size: 12px;">Katılacağım</button>
             </form>
 
             <form th:if="${a.status != null
@@ -97,14 +125,14 @@
           and a.appointmentDatetime.isAfter(T(java.time.LocalDateTime).now())}"
                   th:action="@{'/patient/appointments/' + ${a.id} + '/cancel'}"
                   method="post" style="display:inline; margin-left:6px;">
-                <button type="submit">İptal</button>
+                <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;">İptal</button>
             </form>
 
             <a th:if="${invoiceByAppointmentId != null and a.id != null and invoiceByAppointmentId.containsKey(a.id)
           and invoiceByAppointmentId.get(a.id).status != null
           and (invoiceByAppointmentId.get(a.id).status.name() == 'UNPAID' or invoiceByAppointmentId.get(a.id).status.name() == 'PARTIALLY_PAID')}"
                th:href="@{'/patient/invoices/' + ${invoiceByAppointmentId.get(a.id).id}}"
-               style="display:inline-block; margin-left:6px;">Öde</a>
+               class="btn btn-warning" style="padding: 6px 12px; font-size: 12px; margin-left:6px;">Öde</a>
 
             <form th:if="${a.status != null
           and (a.status.name() == 'COMPLETED' or a.status.name() == 'CANCELLED' or a.status.name() == 'EXPIRED')
@@ -112,26 +140,29 @@
                or (invoiceByAppointmentId.get(a.id).status.name() == 'PAID' or invoiceByAppointmentId.get(a.id).status.name() == 'CANCELLED'))}"
                   th:action="@{'/patient/appointments/' + ${a.id} + '/archive'}"
                   method="post" style="display:inline; margin-left:6px;">
-                <button type="submit">Sil</button>
+                <button type="submit" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Sil</button>
             </form>
-
-            <span style="margin-left:6px;">-</span>
         </td>
     </tr>
-    </tbody>
-</table>
+                </tbody>
+            </table>
+            </div>
 
-<div th:if="${apPage != null and apPage.totalPages > 1}" style="margin-top:12px;">
-    <a th:if="${apPage.hasPrevious()}"
-       th:href="@{/patient/home(page=${apPage.number-1}, hidePast=${hidePast}, days=${days}, status=${statusRaw}, dentistId=${dentistId})}">← Önceki</a>
+            <div th:if="${apPage != null and apPage.totalPages > 1}" class="pagination">
+                <a th:if="${apPage.hasPrevious()}"
+                   th:href="@{/patient/home(page=${apPage.number-1}, hidePast=${hidePast}, days=${days}, status=${statusRaw}, dentistId=${dentistId})}">← Önceki</a>
 
-    <span style="margin:0 10px;" th:text="${(apPage.number+1) + ' / ' + apPage.totalPages}"></span>
+                <span th:text="${(apPage.number+1) + ' / ' + apPage.totalPages}"></span>
 
-    <a th:if="${apPage.hasNext()}"
-       th:href="@{/patient/home(page=${apPage.number+1}, hidePast=${hidePast}, days=${days}, status=${statusRaw}, dentistId=${dentistId})}">Sonraki →</a>
-</div>
+                <a th:if="${apPage.hasNext()}"
+                   th:href="@{/patient/home(page=${apPage.number+1}, hidePast=${hidePast}, days=${days}, status=${statusRaw}, dentistId=${dentistId})}">Sonraki →</a>
+            </div>
 
-<p><a th:href="@{/patient/appointments/new}">Yeni randevu oluştur</a></p>
-<p><a th:href="@{/logout}">Çıkış yap</a></p>
+            <div class="nav-links">
+                <a th:href="@{/patient/appointments/new}" class="btn btn-primary">Yeni Randevu Oluştur</a>
+                <a th:href="@{/logout}" class="btn btn-secondary" style="margin-left: 10px;">Çıkış Yap</a>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
