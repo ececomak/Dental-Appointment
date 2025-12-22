@@ -49,7 +49,9 @@ public class PatientInvoiceController {
                 && inv.getAppointment().getPatient().getUserAccount() != null
                 && email.equals(inv.getAppointment().getPatient().getUserAccount().getEmail());
 
-        if (!isOwner) throw new RuntimeException("Bu faturayı görme yetkin yok.");
+        if (!isOwner) {
+            throw new RuntimeException("Bu faturayı görme yetkin yok.");
+        }
 
         List<Payment> payments = paymentRepository.findByInvoice_IdOrderByPaymentDatetimeDesc(invoiceId);
 
@@ -63,18 +65,14 @@ public class PatientInvoiceController {
                 : BigDecimal.valueOf(inv.getFinalAmount());
 
         BigDecimal remaining = total.subtract(paidTotal);
-        if (remaining.compareTo(BigDecimal.ZERO) < 0) remaining = BigDecimal.ZERO;
+        if (remaining.compareTo(BigDecimal.ZERO) < 0) {
+            remaining = BigDecimal.ZERO;
+        }
 
         boolean overdue = inv.getDueDate() != null
                 && remaining.signum() > 0
                 && inv.getDueDate().isBefore(LocalDate.now())
                 && inv.getStatus() != InvoiceStatus.CANCELLED;
-
-        InvoiceStatus computed = computeStatus(inv.getStatus(), paidTotal, total);
-        if (computed != inv.getStatus()) {
-            inv.setStatus(computed);
-            invoiceRepository.save(inv);
-        }
 
         model.addAttribute("invoice", inv);
         model.addAttribute("payments", payments);
@@ -105,10 +103,16 @@ public class PatientInvoiceController {
                 && inv.getAppointment().getPatient().getUserAccount() != null
                 && email.equals(inv.getAppointment().getPatient().getUserAccount().getEmail());
 
-        if (!isOwner) throw new RuntimeException("Bu faturayı ödeme yetkin yok.");
-        if (inv.getStatus() == InvoiceStatus.CANCELLED) throw new RuntimeException("İptal edilmiş faturaya ödeme yapılamaz.");
+        if (!isOwner) {
+            throw new RuntimeException("Bu faturayı ödeme yetkin yok.");
+        }
+        if (inv.getStatus() == InvoiceStatus.CANCELLED) {
+            throw new RuntimeException("İptal edilmiş faturaya ödeme yapılamaz.");
+        }
 
-        if (amountRaw == null || amountRaw.isBlank()) return "redirect:/patient/invoices/" + invoiceId + "?err=amount";
+        if (amountRaw == null || amountRaw.isBlank()) {
+            return "redirect:/patient/invoices/" + invoiceId + "?err=amount";
+        }
 
         BigDecimal amount;
         try {
@@ -116,22 +120,31 @@ public class PatientInvoiceController {
         } catch (Exception e) {
             return "redirect:/patient/invoices/" + invoiceId + "?err=amount";
         }
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) return "redirect:/patient/invoices/" + invoiceId + "?err=amount";
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return "redirect:/patient/invoices/" + invoiceId + "?err=amount";
+        }
 
-        BigDecimal total = inv.getFinalAmount() == null ? BigDecimal.ZERO : BigDecimal.valueOf(inv.getFinalAmount());
+        BigDecimal total = inv.getFinalAmount() == null
+                ? BigDecimal.ZERO
+                : BigDecimal.valueOf(inv.getFinalAmount());
+
         BigDecimal paidTotal = paymentRepository.sumByInvoiceId(invoiceId);
-        if (paidTotal == null) paidTotal = BigDecimal.ZERO;
+        if (paidTotal == null) {
+            paidTotal = BigDecimal.ZERO;
+        }
 
         BigDecimal remaining = total.subtract(paidTotal);
-        if (remaining.compareTo(BigDecimal.ZERO) < 0) remaining = BigDecimal.ZERO;
+        if (remaining.compareTo(BigDecimal.ZERO) < 0) {
+            remaining = BigDecimal.ZERO;
+        }
 
         if (remaining.signum() <= 0) {
-            inv.setStatus(computeStatus(inv.getStatus(), paidTotal, total));
-            invoiceRepository.save(inv);
             return "redirect:/patient/invoices/" + invoiceId;
         }
 
-        if (amount.compareTo(remaining) > 0) return "redirect:/patient/invoices/" + invoiceId + "?err=amount";
+        if (amount.compareTo(remaining) > 0) {
+            return "redirect:/patient/invoices/" + invoiceId + "?err=amount";
+        }
 
         PaymentMethod method = PaymentMethod.CASH;
         if (methodRaw != null && !methodRaw.isBlank()) {
@@ -140,13 +153,23 @@ public class PatientInvoiceController {
 
         if (method == PaymentMethod.CARD) {
             String digits = (cardNumber == null) ? "" : cardNumber.replaceAll("\\D", "");
-            if (digits.length() != 16) return "redirect:/patient/invoices/" + invoiceId + "?err=card";
-            if (exp == null || !exp.matches("^(0[1-9]|1[0-2])\\/\\d{2}$")) return "redirect:/patient/invoices/" + invoiceId + "?err=exp";
-            if (cvv == null || !cvv.matches("^\\d{3}$")) return "redirect:/patient/invoices/" + invoiceId + "?err=cvv";
-            if (brand == null || brand.isBlank()) return "redirect:/patient/invoices/" + invoiceId + "?err=brand";
+            if (digits.length() != 16) {
+                return "redirect:/patient/invoices/" + invoiceId + "?err=card";
+            }
+            if (exp == null || !exp.matches("^(0[1-9]|1[0-2])\\/\\d{2}$")) {
+                return "redirect:/patient/invoices/" + invoiceId + "?err=exp";
+            }
+            if (cvv == null || !cvv.matches("^\\d{3}$")) {
+                return "redirect:/patient/invoices/" + invoiceId + "?err=cvv";
+            }
+            if (brand == null || brand.isBlank()) {
+                return "redirect:/patient/invoices/" + invoiceId + "?err=brand";
+            }
 
             int lastDigit = Character.getNumericValue(digits.charAt(digits.length() - 1));
-            if (lastDigit % 2 != 0) return "redirect:/patient/invoices/" + invoiceId + "?err=3ds";
+            if (lastDigit % 2 != 0) {
+                return "redirect:/patient/invoices/" + invoiceId + "?err=3ds";
+            }
         }
 
         Payment p = new Payment();
@@ -158,21 +181,6 @@ public class PatientInvoiceController {
         p.setTransactionNo("TX-" + UUID.randomUUID());
         paymentRepository.save(p);
 
-        BigDecimal newPaidTotal = paidTotal.add(amount);
-        inv.setStatus(computeStatus(inv.getStatus(), newPaidTotal, total));
-        invoiceRepository.save(inv);
-
         return "redirect:/patient/invoices/" + invoiceId;
-    }
-
-    private InvoiceStatus computeStatus(InvoiceStatus current, BigDecimal paid, BigDecimal total) {
-        if (current == InvoiceStatus.CANCELLED) return InvoiceStatus.CANCELLED;
-        if (paid == null) paid = BigDecimal.ZERO;
-        if (total == null) total = BigDecimal.ZERO;
-
-        if (total.compareTo(BigDecimal.ZERO) <= 0) return InvoiceStatus.UNPAID;
-        if (paid.compareTo(BigDecimal.ZERO) <= 0) return InvoiceStatus.UNPAID;
-        if (paid.compareTo(total) >= 0) return InvoiceStatus.PAID;
-        return InvoiceStatus.PARTIALLY_PAID;
     }
 }
