@@ -57,20 +57,52 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             Pageable pageable
     );
 
-    @Query("""
-      select a from Appointment a
-      where a.dentist.userAccount.email = :email
-        and a.archivedAt is null
-        and a.appointmentDatetime >= coalesce(:fromDate, a.appointmentDatetime)
-        and a.appointmentDatetime <= coalesce(:toDate,   a.appointmentDatetime)
-        and a.status = coalesce(:status, a.status)
-      order by a.appointmentDatetime desc
-    """)
+    @Query(
+            value = """
+            select a.*
+            from appointment a
+            join dentist d on d.id = a.dentist_id
+            join user_account ua on ua.id = d.user_account_id
+            join patient p on p.id = a.patient_id
+            where ua.email = :email
+              and a.archived_at is null
+              and a.appointment_datetime >= coalesce(:fromDate, a.appointment_datetime)
+              and a.appointment_datetime <= coalesce(:toDate,   a.appointment_datetime)
+              and (:status is null or a.status = cast(:status as varchar))
+              and (
+                    :patientName is null
+                 or :patientName = ''
+                 or lower(p.first_name || ' ' || p.last_name)
+                       like lower('%' || cast(:patientName as text) || '%')
+              )
+            order by a.appointment_datetime desc
+        """,
+            countQuery = """
+            select count(*)
+            from appointment a
+            join dentist d on d.id = a.dentist_id
+            join user_account ua on ua.id = d.user_account_id
+            join patient p on p.id = a.patient_id
+            where ua.email = :email
+              and a.archived_at is null
+              and a.appointment_datetime >= coalesce(:fromDate, a.appointment_datetime)
+              and a.appointment_datetime <= coalesce(:toDate,   a.appointment_datetime)
+              and (:status is null or a.status = cast(:status as varchar))
+              and (
+                    :patientName is null
+                 or :patientName = ''
+                 or lower(p.first_name || ' ' || p.last_name)
+                       like lower('%' || cast(:patientName as text) || '%')
+              )
+        """,
+            nativeQuery = true
+    )
     Page<Appointment> pageDentistAppointments(
             @Param("email") String email,
             @Param("fromDate") LocalDateTime fromDate,
             @Param("toDate") LocalDateTime toDate,
-            @Param("status") AppointmentStatus status,
+            @Param("status") String status,
+            @Param("patientName") String patientName,
             Pageable pageable
     );
 }

@@ -1,16 +1,24 @@
 package com.ece.dental_clinic.controller;
 
-import com.ece.dental_clinic.entity.*;
-import com.ece.dental_clinic.enums.*;
-import com.ece.dental_clinic.repository.*;
-import org.springframework.data.domain.*;
+import com.ece.dental_clinic.entity.Appointment;
+import com.ece.dental_clinic.entity.AppointmentTreatment;
+import com.ece.dental_clinic.entity.Invoice;
+import com.ece.dental_clinic.enums.AppointmentStatus;
+import com.ece.dental_clinic.enums.InvoiceStatus;
+import com.ece.dental_clinic.repository.AppointmentRepository;
+import com.ece.dental_clinic.repository.AppointmentTreatmentRepository;
+import com.ece.dental_clinic.repository.InvoiceRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -41,6 +49,7 @@ public class DentistController {
             @RequestParam(value = "hidePast", required = false, defaultValue = "true") boolean hidePast,
             @RequestParam(value = "days", required = false, defaultValue = "30") int days,
             @RequestParam(value = "status", required = false) String statusRaw,
+            @RequestParam(value = "patientName", required = false) String patientName,
             @RequestParam(value = "page", required = false, defaultValue = "0") int page,
             @RequestParam(value = "err", required = false) String err
     ) {
@@ -52,9 +61,9 @@ public class DentistController {
 
         String email = authentication.getName();
 
-        AppointmentStatus status = null;
+        String statusForDb = null;
         if (statusRaw != null && !statusRaw.isBlank()) {
-            status = AppointmentStatus.valueOf(statusRaw.trim().toUpperCase());
+            statusForDb = statusRaw.trim().toUpperCase();
         }
 
         LocalDateTime fromDate = null;
@@ -64,7 +73,12 @@ public class DentistController {
 
         Pageable pageable = PageRequest.of(Math.max(page, 0), 10);
         Page<Appointment> apPage = appointmentRepository.pageDentistAppointments(
-                email, fromDate, null, status, pageable
+                email,
+                fromDate,
+                null,
+                statusForDb,
+                patientName,
+                pageable
         );
 
         List<Appointment> appointments = apPage.getContent();
@@ -107,6 +121,7 @@ public class DentistController {
         model.addAttribute("hidePast", hidePast);
         model.addAttribute("days", days);
         model.addAttribute("statusRaw", statusRaw);
+        model.addAttribute("patientName", patientName);
         model.addAttribute("statuses", AppointmentStatus.values());
         model.addAttribute("err", err);
 

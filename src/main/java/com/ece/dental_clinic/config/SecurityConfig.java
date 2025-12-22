@@ -40,7 +40,7 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
-                        .requestMatchers("/", "/login").permitAll()
+                        .requestMatchers("/", "/login", "/register", "/register/**").permitAll()
                         .requestMatchers("/patient/**").hasRole("PATIENT")
                         .requestMatchers("/dentist/**").hasRole("DENTIST")
                         .anyRequest().authenticated()
@@ -48,7 +48,6 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/login")
                         .loginProcessingUrl("/login")
-                        // Şu anda login çalışıyor, parametre adlarına dokunmuyoruz.
                         .defaultSuccessUrl("/after-login", true)
                         .failureUrl("/login?error")
                         .permitAll()

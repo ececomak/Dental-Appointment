@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="tr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kayıt Ol - Merkez Diş Kliniği</title>
+    <link th:href="@{/css/style.css}" rel="stylesheet">
+</head>
+<body>
+<header class="header">
+    <div class="header-content">
+        <div>
+            <div class="clinic-name">Merkez Diş Kliniği</div>
+            <div class="clinic-subtitle">Yeni hesap oluştur</div>
+        </div>
+    </div>
+</header>
+
+<div class="page-container">
+    <div class="form-card">
+        <h1 class="login-title">Kayıt Ol</h1>
+        <p class="form-subtitle">
+            Sistemimizi kullanmak için hasta veya diş hekimi olarak yeni bir hesap oluşturun.
+            <span class="required-info">*</span> işaretli alanlar zorunludur.
+        </p>
+
+        <div th:if="${err} != null" class="alert alert-error">
+            <p th:if="${err} == 'missing'">Lütfen zorunlu alanları doldurunuz.</p>
+            <p th:if="${err} == 'pwd'">Şifre ve şifre tekrarı uyuşmuyor.</p>
+            <p th:if="${err} == 'email'">Bu e-posta adresiyle kayıtlı bir kullanıcı zaten var.</p>
+        </div>
+
+        <form th:action="@{/register}" method="post" class="form">
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Rol:</label>
+                    <select name="role" class="form-control">
+                        <option value="PATIENT"
+                                th:selected="${selectedRole == T(com.ece.dental_clinic.enums.UserRole).PATIENT}">
+                            Hasta
+                        </option>
+                        <option value="DENTIST"
+                                th:selected="${selectedRole == T(com.ece.dental_clinic.enums.UserRole).DENTIST}">
+                            Diş Hekimi
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="email">E-posta <span class="required-info">*</span></label>
+                    <input id="email" name="email" type="email" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="password">Şifre <span class="required-info">*</span></label>
+                    <input id="password" name="password" type="password" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="passwordConfirm">Şifre (tekrar) <span class="required-info">*</span></label>
+                    <input id="passwordConfirm" name="passwordConfirm" type="password" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="firstName">Ad <span class="required-info">*</span></label>
+                    <input id="firstName" name="firstName" type="text" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="lastName">Soyad <span class="required-info">*</span></label>
+                    <input id="lastName" name="lastName" type="text" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="phone">Telefon</label>
+                    <input id="phone" name="phone" type="text" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="birthDate">Doğum Tarihi (Hasta için)</label>
+                    <input id="birthDate" name="birthDate" type="date" class="form-control">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="address">Adres</label>
+                    <input id="address" name="address" type="text" class="form-control">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="clinicId">Çalıştığı Klinik (Diş hekimi için)</label>
+                    <select id="clinicId" name="clinicId" class="form-control">
+                        <option value="">Seçiniz</option>
+                        <option th:each="c : ${clinics}"
+                                th:value="${c.id}"
+                                th:text="${c.name}">
+                        </option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="specialty">Uzmanlık (Diş hekimi için)</label>
+                    <input id="specialty" name="specialty" type="text" class="form-control">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary full-width-btn">
+                Kaydı Tamamla
+            </button>
+        </form>
+
+        <div class="nav-links text-center" style="margin-top: 20px;">
+            <a th:href="@{/login}">← Giriş sayfasına dön</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>
